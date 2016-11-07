@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<body id="box" onclick="button_click();"></body>
+<style>
+
+svg {
+  font: 10px sans-serif;
+    margin-left: 50px;
+    margin-right: 50px;
+}
+    
+body {
+    width:inherit;
+    height:auto;
+    background-color: white;
+    border-color: black;
+    border-style: solid;
+    border-width: 1px 1px 1px 1px;
+}
+
+.caption {
+  font-weight: bold;
+}
+
+.key path {
+  display: none;
+}
+
+.key line {
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.county-border {
+  fill: none;
+  stroke: #000;
+  stroke-opacity: .3;
+}
+    
+    .color {
+        display: none;
+    }
+
+</style>
+<body> 
+  <h1 style = "text-align:center; color:black"><bold> New Mexico Population Density</bold></h1>
+    
+<script src="//d3js.org/d3.v3.min.js"></script>
+<script src="//d3js.org/topojson.v1.min.js"></script>
+<script>
+
+var width = 960,
+    height = 1100;
+
+var formatNumber = d3.format(",d");
+
+var path = getPath();
+//var path = d3.geo.path()
+//    .projection(null);
+
+var color = d3.scale.threshold()
+    .domain([1, 10, 50, 100, 500, 1000, 2000, 5000])
+    .range(["#e6e6ff", "#b3b3ff", "#8080ff", "#4d4dff", "#1a1aff", "#0000e6", "#0000b3", "#000080", "#00004d"]);
+    //.range(["#fff7ec", "#fee8c8", "#fdd49e", "#fdbb84", "#fc8d59", "#ef6548", "#d7301f", "#b30000", "#7f0000"]);
+
+// A position encoding for the key only.
+var x = d3.scale.linear()
+    .domain([0, 960])
+    .range([0, 1000]);
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient("bottom")
+    .tickSize(13)
+    .tickValues(color.domain())
+    .tickFormat(function(d) { return d >= 100 ? formatNumber(d) : null; });
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+var g = svg.append("g")
+    .attr("class", "key")
+    .attr("transform", "translate(0,900)");
+
+g.selectAll("rect")
+    .data(color.range().map(function(d, i) {
+      return {
+        x0: i ? x(color.domain()[i - 1]) : x.range()[0],
+        x1: i < color.domain().length ? x(color.domain()[i]) : x.range()[1],
+        z: d
+      };
+    }))
+  .enter().append("rect")
+    .attr("height", 8)
+    .attr("x", function(d) { return d.x0; })
+    .attr("width", function(d) { return d.x1 - d.x0; })
+    .style("fill", function(d) { return d.z; });
+
+g.call(xAxis).append("text")
+    .attr("class", "caption")
+    .attr("y", -6)
+    .text("Population per square mile");
+
+d3.json("nm.json", function(error, nm) {
+  if (error) throw error;
+
+  var tracts = topojson.feature(nm, nm.objects.tracts);
+
+  // Clip tracts to land.
+  svg.append("defs").append("clipPath")
+      .attr("id", "clip-land")
+    .append("path")
+      .datum(topojson.feature(nm, nm.objects.counties))
+      .attr("d", path);
+
+  // Group tracts by color for faster rendering.
+  svg.append("g")
+      .attr("class", "tract")
+      .attr("clip-path", "url(#clip-land)")
+    .selectAll("path")
+      .data(d3.nest()
+        .key(function(d) { return color(d.properties.population / d.properties.area * 2.58999e6); })
+        .entries(tracts.features.filter(function(d) { return d.properties.area; })))
+    .enter().append("path")
+      .style("fill", function(d) { return d.key; })
+      .attr("d", function(d) { return path({type: "FeatureCollection", features: d.values}); });
+
+  // Draw county borders.
+  svg.append("path")
+      .datum(topojson.mesh(nm, nm.objects.counties, function(a, b) { return a !== b; }))
+      .attr("class", "county-border")
+      .attr("d", path);
+});
+
+d3.select(self.frameElement).style("height", height + "px");
+    
+
+    
+function getPath() {
+
+  var projection = {
+    center: [0, 33.0],
+    rotate: [106.336396, 0, 0],
+    parallels: [31.355884, 37.022199],
+    scale: 11900
+  };
+
+  var projection = d3.geo.albers()
+    .center(projection.center)
+    .rotate(projection.rotate)
+    .parallels(projection.parallels)
+    .scale(projection.scale)
+    .translate([width / 2, height / 2]);
+
+  var path = d3.geo.path()
+      .projection(projection);
+
+  return path
+}
+
+    
+// 1. Create the button
+var button = document.createElement("button");
+button.innerHTML = "Change Colors!";
+
+// 2. Append somewhere
+var body = document.getElementsByTagName("body")[0];
+body.appendChild(button);
+
+// 3. Add event handler
+button.addEventListener ("click", function() {
+    var color = d3.scale.threshold()
+        .domain([1, 10, 50, 100, 500, 1000, 2000, 5000])
+        .range(["#fff7ec", "#fee8c8", "#fdd49e", "#fdbb84", "#fc8d59", "#ef6548", "#d7301f", "#b30000", "#7f0000"])
+});
+
+var colors = ["red","blue","green","yellow","purple"];
+var i = 0;
+var selectedColor;
+    function button_click() {
+        selectedColor = colors[i];
+        document.getElementById("box").style.backgroundColor = selectedColor;
+        i++;
+        if(i > colors.length)
+            i = 0;
+    }
+
+</script>
+   
